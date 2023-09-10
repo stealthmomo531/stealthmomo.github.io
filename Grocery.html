@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grocery Price Check</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-image: url('background.png');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scrollbar */
+        }
+
+        /* Container to center content */
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 5em; /* Adjust the font size as needed */
+            color: #FF77A9;
+            text-align: center;
+            line-height: 1.5;
+            animation: pulse 2s infinite alternate;
+            text-shadow: 2px 2px 4px white;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: rgba(255, 182, 193, 1.0);
+            color: #FF77A9; /* Button text color */
+            font-family: "Comic Sans MS", sans-serif;
+            font-size: 2em; /* Button text size */
+            border: none;
+            cursor: pointer;
+            margin-top: 10px; /* Adjust spacing as needed */
+            border-radius: 20px; /* Rounded corners */
+        }
+
+        .button:hover {
+            background-color: white;
+            box-shadow: 0 0 10px 5px rgba(255, 255, 255, 0.7);
+        }
+
+        /* Popup styles */
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%; /* Center vertically */
+            left: 50%; /* Center horizontally */
+            transform: translate(-50%, -50%); /* Center content */
+            max-height: 80%; /* Limit the maximum height */
+            max-width: 80%; /* Limit the maximum width */
+            overflow-y: auto; /* Add scrollbar for excess content */
+            overflow-x: hidden; /* Hide horizontal scrollbar */
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background overlay */
+            z-index: 1;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Popup content */
+        .popup-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            width: 100%; /* Force full width */
+        }
+
+        /* Window controls */
+        .window-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        /* Styling for the inventory table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #FF77A9;
+            color: white;
+        }
+
+        /* New styling for the Price Change column */
+        td.price-change {
+            font-weight: bold;
+        }
+
+        td.price-change.positive {
+            color: red;
+        }
+
+        td.price-change.negative {
+            color: green;
+        }
+
+        td.price-change.zero {
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Grocery Price Check</h1>
+        <button class="button" id="addItemButton">Update Inventory</button>
+        <br> <!-- Added line break for spacing -->
+        <button class="button" id="viewInventoryButton">View Inventory</button>
+        <br> <!-- Added line break for spacing -->
+        <button class="button" id="whatsNewButton">What's New?</button> <!-- Added "What's New?" button -->
+    </div>
+
+    <!-- Popup for adding items -->
+    <div id="addItemPopup" class="popup">
+        <div class="popup-content">
+            <div class="window-controls">
+                <button onclick="closePopup()">✕</button>
+            </div>
+            <h2>Add New Item</h2>
+            <form id="addItemForm">
+                <label for="itemName">Item Name:</label>
+                <input type="text" id="itemName" required><br>
+
+                <label for="itemPrice">Price (PHP):</label>
+                <input type="number" id="itemPrice" step="0.01" required><br>
+
+                <button type="submit">Add</button>
+                <button type="button" onclick="closePopup()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Popup for viewing inventory -->
+    <div id="viewInventoryPopup" class="popup">
+        <div class="popup-content">
+            <div class="window-controls">
+                <button onclick="closeInventoryPopup()">✕</button>
+            </div>
+            <h2>Inventory</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Item Price (PHP)</th>
+                        <th>Price Change</th> <!-- Added Price Change column -->
+                        <th>Date Modified</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryList"></tbody>
+            </table>
+            <button class="button" id="closeInventoryButton" onclick="closeInventoryPopup()">Close</button>
+        </div>
+    </div>
+
+    <!-- "What's New?" popup with a table showing "Item Name" and "Price Change" -->
+    <div id="whatsNewPopup" class="popup">
+        <div class="popup-content">
+            <div class="window-controls">
+                <button onclick="closeWhatsNewPopup()">✕</button>
+            </div>
+            <h2>What's New?</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Price Change</th>
+                    </tr>
+                </thead>
+                <tbody id="whatsNewList"></tbody>
+            </table>
+            <button class="button" id="closeWhatsNewButton" onclick="closeWhatsNewPopup()">Close</button>
+        </div>
+    </div>
+
+    <!-- Popup for editing item name -->
+    <div id="editItemPopup" class="popup">
+        <div class="popup-content">
+            <div class="window-controls">
+                <button onclick="closeEditPopup()">✕</button>
+            </div>
+            <h2>Edit Item Name</h2>
+            <form id="editItemForm">
+                <label for="editItemName">New Item Name:</label>
+                <input type="text" id="editItemName" required><br>
+                <button type="submit">Save</button>
+                <button type="button" onclick="closeEditPopup()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const addItemButton = document.getElementById('addItemButton');
+        const viewInventoryButton = document.getElementById('viewInventoryButton');
+        const closeInventoryButton = document.getElementById('closeInventoryButton');
+        const addItemPopup = document.getElementById('addItemPopup');
+        const viewInventoryPopup = document.getElementById('viewInventoryPopup');
+        const editItemPopup = document.getElementById('editItemPopup'); // Added editItemPopup
+        const addItemForm = document.getElementById('addItemForm');
+        const itemNameInput = document.getElementById('itemName');
+        const itemPriceInput = document.getElementById('itemPrice');
+        const inventoryList = document.getElementById('inventoryList');
+        const editItemForm = document.getElementById('editItemForm');
+        const editItemNameInput = document.getElementById('editItemName');
+        const whatsNewButton = document.getElementById('whatsNewButton'); // Get the "What's New?" button
+        const whatsNewPopup = document.getElementById('whatsNewPopup');
+        const whatsNewList = document.getElementById('whatsNewList');
+
+        // Array to store items
+        let inventory = [];
+
+        // Function to show the popup for adding items
+        addItemButton.addEventListener('click', () => {
+            addItemPopup.style.display = 'block';
+        });
+
+        // Function to hide the popup for adding items
+        function closePopup() {
+            addItemPopup.style.display = 'none';
+            clearForm();
+        }
+
+        // Function to clear the form inputs
+        function clearForm() {
+            itemNameInput.value = '';
+            itemPriceInput.value = '';
+        }
+
+        // Function to add an item to the inventory or update if it exists
+        addItemForm.addEventListener('submit', (event) => {
+            event.preventDefault(); // Prevent form submission
+
+            const itemName = itemNameInput.value.toLowerCase(); // Convert to lowercase
+            const itemPrice = parseFloat(itemPriceInput.value);
+
+            // Check if input is valid
+            if (itemName && !isNaN(itemPrice)) {
+                const existingItemIndex = inventory.findIndex((item) => item.name.toLowerCase() === itemName);
+
+                if (existingItemIndex !== -1) {
+                    // If the item already exists, update its price and calculate price change
+                    const previousPrice = parseFloat(inventory[existingItemIndex].price);
+                    inventory[existingItemIndex].price = itemPrice.toFixed(2);
+                    const priceChange = itemPrice - previousPrice;
+                    inventory[existingItemIndex].priceChange = priceChange.toFixed(2);
+                    inventory[existingItemIndex].dateModified = new Date().toLocaleString();
+                } else {
+                    // If the item doesn't exist, add it as a new item
+                    const newItem = {
+                        name: itemName, // Use the lowercase item name
+                        price: itemPrice.toFixed(2), // Limit to 2 decimal places
+                        dateAdded: new Date().toLocaleString(),
+                        dateModified: new Date().toLocaleString(), // Initial date modified
+                        priceChange: "0.00", // Initial price change
+                    };
+
+                    inventory.push(newItem);
+                }
+
+                // Sort the inventory array by item name (in alphabetical order)
+                inventory.sort((a, b) => a.name.localeCompare(b.name));
+
+                // Save the updated inventory to localStorage
+                localStorage.setItem('inventory', JSON.stringify(inventory));
+
+                // Clear the form inputs
+                clearForm();
+
+                // Close the add item popup
+                closePopup();
+            }
+        });
+
+        // Function to display the inventory (you can customize the display)
+        viewInventoryButton.addEventListener('click', () => {
+            displayInventory();
+        });
+
+        // Function to display the inventory in the popup
+        function displayInventory() {
+            // Clear the existing table
+            const tbody = document.getElementById('inventoryList');
+            tbody.innerHTML = '';
+
+            // Retrieve inventory data from localStorage
+            const savedInventory = localStorage.getItem('inventory');
+            if (savedInventory) {
+                inventory = JSON.parse(savedInventory);
+
+                // Populate the table with items
+                inventory.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    const itemNameCell = document.createElement('td');
+                    const itemPriceCell = document.createElement('td');
+                    const priceChangeCell = document.createElement('td'); // Price Change cell
+                    const dateModifiedCell = document.createElement('td');
+                    const actionsCell = document.createElement('td');
+                    const editButton = document.createElement('button');
+
+                    itemNameCell.textContent = item.name;
+                    itemPriceCell.textContent = `₱${item.price}`;
+                    priceChangeCell.textContent = `₱${item.priceChange}`; // Display Price Change
+                    dateModifiedCell.textContent = item.dateModified || item.dateAdded; // Use dateModified if available, else use dateAdded
+
+                    // Apply appropriate styling based on price change
+                    priceChangeCell.classList.add('price-change');
+                    if (parseFloat(item.priceChange) > 0) {
+                        priceChangeCell.classList.add('positive');
+                    } else if (parseFloat(item.priceChange) < 0) {
+                        priceChangeCell.classList.add('negative');
+                    } else {
+                        priceChangeCell.classList.add('zero');
+                    }
+
+                    editButton.textContent = 'Edit';
+                    editButton.addEventListener('click', () => {
+                        editItem(index);
+                    });
+
+                    actionsCell.appendChild(editButton);
+
+                    row.appendChild(itemNameCell);
+                    row.appendChild(itemPriceCell);
+                    row.appendChild(priceChangeCell); // Add Price Change cell
+                    row.appendChild(dateModifiedCell);
+                    row.appendChild(actionsCell);
+
+                    tbody.appendChild(row);
+                });
+            }
+
+            // Show the "View Inventory" popup
+            viewInventoryPopup.style.display = 'block';
+        }
+
+        // Function to close the "View Inventory" popup
+        function closeInventoryPopup() {
+            viewInventoryPopup.style.display = 'none';
+        }
+
+        // Function to close the "What's New?" popup
+        function closeWhatsNewPopup() {
+            whatsNewPopup.style.display = 'none';
+        }
+
+        // Function to edit an item's name
+        function editItem(index) {
+            const item = inventory[index];
+            editItemNameInput.value = item.name;
+            editItemPopup.style.display = 'block';
+
+            editItemForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+
+                const newItemName = editItemNameInput.value.toLowerCase();
+                if (newItemName === 'delete') {
+                    // Remove the item from the list
+                    removeItem(item.name);
+                    // Close the edit popup
+                    closeEditPopup();
+                    // Refresh the inventory display
+                    displayInventory();
+                } else if (newItemName) {
+                    // Update the item name
+                    item.name = newItemName;
+                    item.dateModified = new Date().toLocaleString();
+
+                    // Sort the inventory array by item name (in alphabetical order)
+                    inventory.sort((a, b) => a.name.localeCompare(b.name));
+
+                    // Save the updated inventory to localStorage
+                    localStorage.setItem('inventory', JSON.stringify(inventory));
+
+                    // Close the edit popup
+                    closeEditPopup();
+                    // Refresh the inventory display
+                    displayInventory();
+                }
+            });
+        }
+
+        // Function to close the edit item popup
+        function closeEditPopup() {
+            editItemPopup.style.display = 'none';
+        }
+
+        // Function to remove an item from the inventory
+        function removeItem(name) {
+            inventory = inventory.filter((item) => item.name.toLowerCase() !== name.toLowerCase());
+
+            // Save the updated inventory to localStorage
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+        }
+
+        // Function to display the "What's New?" table
+        whatsNewButton.addEventListener('click', () => {
+            displayWhatsNew();
+        });
+
+        // Function to display the "What's New?" table in the popup
+        function displayWhatsNew() {
+            // Clear the existing table
+            const tbody = document.getElementById('whatsNewList');
+            tbody.innerHTML = '';
+
+            // Filter items with a non-zero price change
+            const newItems = inventory.filter((item) => parseFloat(item.priceChange) !== 0);
+
+            // Only show items modified within the last 5 minutes
+            const currentTime = new Date().getTime();
+            const fiveMinutesAgo = currentTime - 1440 * 60 * 1000;
+
+            // Populate the table with new items modified within the last 5 minutes
+            newItems.forEach((item) => {
+                const modifiedTime = new Date(item.dateModified).getTime();
+                if (modifiedTime >= fiveMinutesAgo) {
+                    const row = document.createElement('tr');
+                    const itemNameCell = document.createElement('td');
+                    const priceChangeCell = document.createElement('td');
+
+                    itemNameCell.textContent = item.name;
+                    priceChangeCell.textContent = `₱${item.priceChange}`;
+
+                    // Apply appropriate styling based on price change
+                    priceChangeCell.classList.add('price-change');
+                    if (parseFloat(item.priceChange) > 0) {
+                        priceChangeCell.classList.add('positive');
+                    } else {
+                        priceChangeCell.classList.add('negative');
+                    }
+
+                    row.appendChild(itemNameCell);
+                    row.appendChild(priceChangeCell);
+
+                    tbody.appendChild(row);
+                }
+            });
+
+            // Show the "What's New?" popup
+            whatsNewPopup.style.display = 'block';
+        }
+
+        // Initialize the inventory from localStorage on page load
+        window.addEventListener('load', () => {
+            const savedInventory = localStorage.getItem('inventory');
+            if (savedInventory) {
+                inventory = JSON.parse(savedInventory);
+            }
+        });
+    </script>
+</body>
+</html>
